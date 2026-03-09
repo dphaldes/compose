@@ -65,11 +65,11 @@ impl ComposeWorld {
         }
     }
 
-    pub fn add_source(&mut self, source: String) {
+    pub fn set_source(&mut self, source: String) {
         self.open_source = Some(Source::detached(source));
     }
 
-    pub fn get_file(&self, id: FileId) -> FileResult<File> {
+    fn get_file(&self, id: FileId) -> FileResult<File> {
         let mut files = self.files.lock().map_err(|_| FileError::AccessDenied)?;
         if let Some(file) = files.get(&id) {
             return Ok(file.clone());
