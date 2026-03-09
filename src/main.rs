@@ -5,7 +5,12 @@ use crate::world::ComposeWorld;
 mod world;
 
 fn main() {
-    let world = ComposeWorld::new();
+    let content = r#"
+        = Typst from rust!
+        "#;
+
+    let mut world = ComposeWorld::new();
+    world.add_source(content.into());
 
     let document = typst::compile(&world)
         .output

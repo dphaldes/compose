@@ -1,3 +1,9 @@
+use std::{
+    collections::HashMap,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
+
 use typst::{
     Library, LibraryExt, World,
     diag::{FileError, FileResult},
@@ -9,26 +15,73 @@ use typst::{
 use typst_kit::fonts::{FontSlot, Fonts};
 
 pub struct ComposeWorld {
-    main_file: FileId,
+    open_source: Option<Source>, //does this need to be here ?
     library: LazyHash<Library>,
     font_book: LazyHash<FontBook>,
     fonts: Vec<FontSlot>,
+    files: Arc<Mutex<HashMap<FileId, File>>>,
+}
+
+#[derive(Clone)]
+struct File {
+    source: Option<Source>,
+    data: Bytes,
+}
+
+impl File {
+    fn new(source: Option<Source>, data: Vec<u8>) -> Self {
+        Self {
+            source,
+            data: Bytes::new(data),
+        }
+    }
+
+    fn source(&mut self, id: FileId) -> FileResult<Source> {
+        let source = if let Some(source) = &self.source {
+            source
+        } else {
+            let contents = std::str::from_utf8(&self.data).map_err(|_| FileError::InvalidUtf8)?;
+            let contents = contents.trim_start_matches('\u{feff}');
+            let source = Source::new(id, contents.into());
+            self.source.insert(source)
+        };
+        Ok(source.clone())
+    }
 }
 
 impl ComposeWorld {
     pub fn new() -> Self {
-        let main_file = FileId::new(None, VirtualPath::new("main.typ"));
         let library = LazyHash::new(Library::builder().build());
         let loaded = Fonts::searcher().include_system_fonts(true).search();
         let font_book = LazyHash::new(loaded.book);
         let fonts = loaded.fonts;
 
         Self {
-            main_file,
+            open_source: None,
             library,
             font_book,
             fonts,
+            files: Arc::new(Mutex::new(HashMap::new())),
         }
+    }
+
+    pub fn add_source(&mut self, source: String) {
+        self.open_source = Some(Source::detached(source));
+    }
+
+    pub fn get_file(&self, id: FileId) -> FileResult<File> {
+        let mut files = self.files.lock().map_err(|_| FileError::AccessDenied)?;
+        if let Some(file) = files.get(&id) {
+            return Ok(file.clone());
+        }
+
+        let path = id
+            .vpath()
+            .resolve(&PathBuf::from("../"))
+            .ok_or(FileError::AccessDenied)?;
+
+        let content = std::fs::read(&path).map_err(|error| FileError::from_io(error, &path))?;
+        Ok(files.entry(id).or_insert(File::new(None, content)).clone())
     }
 }
 
@@ -42,15 +95,23 @@ impl World for ComposeWorld {
     }
 
     fn main(&self) -> FileId {
-        self.main_file
+        if let Some(file) = &self.open_source {
+            return file.id();
+        }
+        FileId::new_fake(VirtualPath::new("main.typ"))
     }
 
     fn source(&self, id: FileId) -> FileResult<Source> {
-        Err(FileError::Other(None))
+        if let Some(file) = &self.open_source {
+            if id == file.id() {
+                return Ok(file.clone());
+            }
+        }
+        self.get_file(id)?.source(id)
     }
 
     fn file(&self, id: FileId) -> FileResult<Bytes> {
-        Err(FileError::Other(None))
+        self.get_file(id).map(|file| file.data.clone())
     }
 
     fn font(&self, index: usize) -> Option<Font> {
