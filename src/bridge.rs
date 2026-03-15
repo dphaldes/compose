@@ -1,47 +1,81 @@
+use core::pin::Pin;
+use cxx::UniquePtr;
+use cxx_qt::Initialize;
+
 #[cxx_qt::bridge]
-mod qobject {
+mod ffi {
+
     extern "C++" {
-        include!(<QtQuick/QQuickImageProvider>);
-        type QQuickImageProvider;
+        include!("compose/PixmapImageProvider.h");
+        type PixmapImageProvider;
 
-        include!("cxx-qt-lib/qqmlimageproviderbase.h");
+        type QQmlImageProviderBase = cxx_qt_lib::QQmlImageProviderBase;
+        type QString = cxx_qt_lib::QString;
+        type QSize = cxx_qt_lib::QSize;
 
-        #[namespace = "rust::cxxqtlib1"]
-        type QQmlImageProviderBaseImageType = cxx_qt_lib::QQmlImageProviderBaseImageType;
-
+        include!("cxx-qt-lib/qimage.h");
+        type QImage = cxx_qt_lib::QImage;
     }
 
     extern "RustQt" {
+
         #[qobject]
-        #[base = QQuickImageProvider]
+        #[base = PixmapImageProvider]
         type PreviewProvider = super::PreviewProviderType;
+
+        #[cxx_virtual]
+        #[cxx_name = "requestImage"]
+        unsafe fn request_image(
+            self: &PreviewProvider,
+            id: &QString,
+            size: *const QSize,
+            requested_size: &QSize,
+        ) -> QImage;
     }
 
-    impl cxx_qt::Constructor<(QQmlImageProviderBaseImageType,)> for PreviewProvider {}
+    unsafe extern "RustQt" {
+
+        #[inherit]
+        #[cxx_name = "castToBase"]
+        pub unsafe fn cast_to_base(self: Pin<&mut PreviewProvider>) -> *mut QQmlImageProviderBase;
+    }
+
+    impl cxx_qt::Constructor<()> for PreviewProvider {}
+
+    #[namespace = "rust::cxxqtlib1"]
+    unsafe extern "C++" {
+        include!("cxx-qt-lib/common.h");
+
+        #[cxx_name = "make_unique"]
+        #[doc(hidden)]
+        fn new_preview_provider() -> UniquePtr<PreviewProvider>;
+    }
 }
 
 #[derive(Default)]
-struct PreviewProviderType;
-use ffi::PreviewProvider;
+pub struct PreviewProviderType;
+pub use ffi::PreviewProvider;
 
-use cxx_qt_lib::QQmlImageProviderBaseImageType;
+impl Initialize for PreviewProvider {
+    fn initialize(self: Pin<&mut Self>) {}
+}
 
-impl cxx_qt::Constructor<(QQmlImageProviderBaseImageType,)> for PreviewProvider {
-    type NewArguments = ();
-    type BaseArguments = (QQmlImageProviderBaseImageType,);
-    type InitializeArguments;
+use cxx_qt_lib::QImage;
+use cxx_qt_lib::QImageFormat;
+use cxx_qt_lib::QSize;
+use cxx_qt_lib::QString;
 
-    fn route_arguments(
-        args: (QQmlImageProviderBaseImageType,),
-    ) -> (
-        Self::NewArguments,
-        Self::BaseArguments,
-        Self::InitializeArguments,
-    ) {
-        ((), args, ())
+impl PreviewProvider {
+    pub fn new() -> UniquePtr<Self> {
+        ffi::new_preview_provider()
     }
 
-    fn new(_: ()) -> PreviewProviderType {
-        PreviewProviderType::default()
+    unsafe fn request_image(
+        self: &Self,
+        id: &QString,
+        size: *const QSize,
+        requested_size: &QSize,
+    ) -> QImage {
+        QImage::from_width_height_and_format(50, 70, QImageFormat::Format_Mono)
     }
 }

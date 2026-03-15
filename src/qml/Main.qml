@@ -6,4 +6,8 @@ Kirigami.ApplicationWindow {
     Controls.Label {
         text: "Compose"
     }
+
+    // Image {
+    //     source: "image://preview/cat"
+    // }
 }
