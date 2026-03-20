@@ -7,7 +7,7 @@ Kirigami.ApplicationWindow {
         text: "Compose"
     }
 
-    // Image {
-    //     source: "image://preview/cat"
-    // }
+    Image {
+        source: "image://preview/cat"
+    }
 }
