@@ -1,5 +1,3 @@
-use std::{ops::DerefMut, pin::Pin};
-
 use cxx_qt::casting::Upcast;
 
 use cxx_qt_lib::{QGuiApplication, QQmlApplicationEngine, QQmlImageProviderBase, QString, QUrl};
@@ -18,7 +16,7 @@ fn main() {
 
     let mut app = QGuiApplication::new();
     let mut engine = QQmlApplicationEngine::new();
-    let mut preview = PreviewProvider::new();
+    let preview = PreviewProvider::new();
 
     QGuiApplication::set_desktop_file_name(&QString::from("org.kde.kontrast"));
 
@@ -45,11 +43,12 @@ fn main() {
         // KLocalizedContext::initialize_engine(engine.as_mut().upcast_pin());
 
         unsafe {
-            let provider = preview.as_ptr();
-            engine.as_mut().add_image_provider(
-                &QString::from("preview"),
-                provider as *mut QQmlImageProviderBase,
-            );
+            let provider: *const QQmlImageProviderBase =
+                PreviewProvider::upcast_ptr(preview.into_raw());
+
+            engine
+                .as_mut()
+                .add_image_provider(&QString::from("preview"), provider.cast_mut());
         }
 
         engine.load(&QUrl::from("qrc:/qt/qml/org/kde/compose/src/qml/Main.qml"));
