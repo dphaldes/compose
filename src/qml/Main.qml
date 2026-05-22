@@ -8,6 +8,8 @@ Kirigami.ApplicationWindow {
     }
 
     Image {
+        asynchronous: true
+        cache: false
         source: "image://preview/cat"
     }
 }

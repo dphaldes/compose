@@ -9,8 +9,8 @@ typst-kit = "0.14.2"
 typst-library = "0.14.2"
 typst-render = "0.14.2"
 cxx = "1.0.194"
-cxx-qt = { path = "../cxx-qt/crates/cxx-qt/" }
-cxx-qt-lib = { path = "../cxx-qt/crates/cxx-qt-lib/", features = ["full"] }
+cxx-qt = { git = "https://github.com/KDAB/cxx-qt.git" }
+cxx-qt-lib = { git = "https://github.com/KDAB/cxx-qt.git", features = ["full"] }
 
 [build-dependencies]
-cxx-qt-build = { path = "../cxx-qt/crates/cxx-qt-build/" }
+cxx-qt-build = { git = "https://github.com/KDAB/cxx-qt.git" }
